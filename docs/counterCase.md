@@ -1,11 +1,8 @@
 ## [REQ2 addUser]
-1. User name already in the current users list 
--> Output name has been occupied
-
-2. User name is empty
+1. User name is empty
 -> Output name should not be empty
 
-3. Incorrect number parameter input
+2. Incorrect number parameter input
 -> Output number of inputs is incorrect
 
 ## [REQ3 removeUser]
@@ -20,6 +17,8 @@
 
 4. Target user ID is not regular user ID
 -> Output the authority warning: admin user do not have authority to delete admin/superadmin user
+
+5. Delete user will delete all his bookings, not only including the future bookings
 
 ## [REQ4 changeRole]
 1. The superadmin user modify a regular/admin user to be a superadmin
@@ -84,8 +83,7 @@
 2. roomID does not exist
 -> Output input incorrect: roomID does not exist
 
-3. Room is currently being used
--> Output warning: the room is currently being used
+3. Delete room will delete the booking of this room in future, but not delete the booking on progress or in the past.
 
 ## [REQ10 book]
 1. User has not logged in
@@ -97,7 +95,7 @@
 3. Time conflict
 -> Output the current room at appointed time has been occupied
 
-4. endTime later than startTime
+4. endTime before startTime
 -> Output the endTime should be after the startTime
 
 5. purpose could be empty
@@ -112,10 +110,16 @@
 2. Authority problem
 -> the booking not belong to the logged-in user
 
-Same counter cases as REQ10
+Same counter cases as REQ10 (except REQ10 6; REQ10 3: time conflict excludes the time period of booking to be modified when new booking's room is same as original one)
 
 ## [REQ12 deletebooking]
-Same as modifyBooking
+1. booking ID does not exits
+-> Output input incorrect: booking ID does not exist
+
+2. current user ID is not the same as ownerID of the booking
+-> Output userID does not match
+
+3. Delete booking will remove the booking from all bookings rather than changing the status (there's not status field for a booking)
 
 ## [REQ13 search]
 1. time error, start time later than end time
@@ -136,8 +140,6 @@ Same as modifyBooking
 3. If a room bookings gets across the mid-night of the counter time of 7-day
 -> it still will be showcased
 
-specify: The bookings in the past would be clacified as COMPLETED, rather than ACTIVE. Therefore, if schedule is called to look up for past date, there would not be any results on that dates, since there would not be ACTIVE bookings in the past.
-
 ## [REQ15 listRoom]
 1. roomID does not exist
 -> Output input incorrect: roomID does not exist
@@ -153,6 +155,7 @@ specify: The bookings in the past would be clacified as COMPLETED, rather than A
 1. If the user has not logged in
 -> Output logging situation incorrect: You have not logged in
 
+2. List bookings will list all the bookings made by user, including past, current and future, sorted by date and start time.
 ## [REQ18 quit]
 
 

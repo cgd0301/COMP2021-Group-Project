@@ -40,7 +40,7 @@
   2. [logout] Help user log out the system (Helper: null)
   3. [addUser] Ask User to create a new regular user and add new regular user to all users only for admin user (Helper: User)
   4. [removeUser] Check current user authority, if (super)admin, ask User to return target user's role. Then check if the target user is a regular user, if so, delete bookings whose ownerID is targetuserID by CROBS and delete user from all users. (Helper: User)
-  5. [changeRole] Find the user and ask user to update role for only superadmin user(Helper: User)
+  5. [changeRole] Find the user and ask user to update role for only superadmin user, if the regular user is to be changed to superadmin, provide a double check, if approved, the role of current user should be changed a regular user(Helper: User)
   6. [addRoom] Check authority, if (super)admin, ask Room to create new room and add the new room to all rooms (Helper: Room (for creating a new roon))
   7. [modifyRoom] Check authority, if (super)admin, find the room and ask Room to update room information (Helper: Room)
   8. [deleteRoom] Check authority, if (super)admin, find the room's booking in all bookings, ask Booking to test whether the booking is in the future, if so, delete them from all bookings. Then delete the room from all rooms (Helper: Booking)
