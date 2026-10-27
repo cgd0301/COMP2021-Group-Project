@@ -1,5 +1,5 @@
 package hk.edu.polyu.comp.comp2021.crobs.controller;
-import hk.edu.polyu.comp.comp2021.crobs.model.CROBS;
+import hk.edu.polyu.comp.comp2021.crobs.model.*;
 
 /**
  * quit command for quiting the system

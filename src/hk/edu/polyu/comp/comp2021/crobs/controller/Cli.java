@@ -15,6 +15,11 @@ public class Cli {
     public static final HashMap<String, Command> commands = new HashMap<>();
     static {
         commands.put("quit", new QuitCommand());
+        commands.put("addUser", new AddUserCommand());
+        commands.put("changeRole", new ChangeRoleCommand());
+        commands.put("removeUser", new RemoveUserCommand());
+        commands.put("login", new LoginCommand());
+        commands.put("logout", new LogoutCommand());
     }
 
     /**
