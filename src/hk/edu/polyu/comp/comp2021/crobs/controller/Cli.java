@@ -20,6 +20,11 @@ public class Cli {
         commands.put("removeUser", new RemoveUserCommand());
         commands.put("login", new LoginCommand());
         commands.put("logout", new LogoutCommand());
+        commands.put("addRoom", new AddRoom());
+        commands.put("modifyRoom", new ModifyRoomCommand());
+        commands.put("deleteRoom", new DeleteRoomCommand());
+        commands.put("listRoom", new ListRoomCommand());
+        commands.put("listAllRooms", new ListAllRoomsCommand());
     }
 
     /**

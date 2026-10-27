@@ -12,10 +12,12 @@ public class RemoveUserCommand implements Command {
 
         String[] details = detail.split("\\s+");
         if (details.length == 1) {
-            crobs.removeUser(details[0]);
+            crobs.removeUser(details[0].toUpperCase());
         } else {
             throw new CrobsException("Incorrect number of input parameters");
         }
+
+        System.out.printf("Successfully remove the target user (userID: %s)\n", details[0]);
         return false;
     }
 }

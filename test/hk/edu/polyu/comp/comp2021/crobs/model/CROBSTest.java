@@ -123,7 +123,7 @@ class CROBSTest {
         crobs.addUser("Bob");
         CrobsException ex = assertThrows(CrobsException.class,
                 () -> crobs.removeUser("S000003"));
-        assertEquals("Input target ID not found", ex.getMessage());
+        assertEquals("Input target user ID not found", ex.getMessage());
     }
 
     @Test
@@ -188,13 +188,23 @@ class CROBSTest {
         assertEquals(UserRole.SUPERADMIN, crobs.findUser("S000001").getRole());
     }
 
+    @Test
     void changeRoleUserIDNotExist() {
         this.loginAs(UserRole.SUPERADMIN);
         crobs.addUser("Amy");
         CrobsException ex = assertThrows(CrobsException.class,
                 () -> crobs.changeRole("S000002", UserRole.ADMIN));
-        assertEquals("Input target ID not found", ex.getMessage());
+        assertEquals("Input target user ID not found", ex.getMessage());
     }
+
+    @Test
+    void changeOwnRole() {
+        this.loginAs(UserRole.SUPERADMIN);
+        CrobsException ex = assertThrows(CrobsException.class,
+                () -> crobs.changeRole("S000000", UserRole.ADMIN));
+        assertEquals("You can not change your own role", ex.getMessage());
+    }
+
 
 
     private void loginAs(UserRole role) {

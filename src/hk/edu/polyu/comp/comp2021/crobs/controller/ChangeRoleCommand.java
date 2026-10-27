@@ -12,10 +12,13 @@ public class ChangeRoleCommand implements Command {
         String[] details = detail.split("\\s+");
         if (details.length == 2) {
             UserRole newRole = getNewRole(details);
-            crobs.changeRole(details[0], newRole);
+            crobs.changeRole(details[0].toUpperCase(), newRole);
+            System.out.printf("Successfully change the role of target user " +
+                    "(userID: %s, current role: %s)\n", details[0], newRole.getRole());
         } else {
             throw new CrobsException("Incorrect number of parameters");
         }
+
         return false;
     }
 

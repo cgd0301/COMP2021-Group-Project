@@ -12,6 +12,7 @@ public class LoginCommand implements Command {
         String[] details = detail.split("\\s+");
         if (details.length == 1) {
             crobs.login(details[0].toUpperCase());
+            System.out.println("Successfully logged in");
         } else {
             throw new CrobsException("Incorrect number of input parameters");
         }

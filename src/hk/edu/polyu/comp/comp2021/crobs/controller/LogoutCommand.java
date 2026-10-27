@@ -8,6 +8,7 @@ public class LogoutCommand implements Command {
             throw new CrobsException("Incorrect number of input parameters");
         } else {
             crobs.logout();
+            System.out.println("Successfully logged out");
             return false;
         }
     }

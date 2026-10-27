@@ -12,9 +12,11 @@ public class AddUserCommand implements Command {
         String[] details = detail.split("\\s+");
         if (details.length == 1) {
             crobs.addUser(details[0]);
+            System.out.println("Successfully add a new regular user");
         } else {
             throw new CrobsException("Incorrect number of input parameters");
         }
+
         return false;
     }
 }
