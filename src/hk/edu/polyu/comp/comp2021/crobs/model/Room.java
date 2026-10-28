@@ -14,7 +14,7 @@ public class Room {
         this.roomID = roomID;
         this.roomType = roomType;
         this.capacity = capacity;
-        this.features = features;
+        this.features = new HashSet<>(features);
     }
 
     public boolean satisfies(int minCapacity, Set<String> features) {
@@ -40,7 +40,7 @@ public class Room {
     }
 
     public void setRoomFeatures(Set<String> newFeatures) {
-        this.features = newFeatures;
+        this.features = new HashSet<>(newFeatures);
     }
 
     public String getRoomID() {

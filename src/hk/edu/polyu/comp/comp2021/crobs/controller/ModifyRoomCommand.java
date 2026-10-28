@@ -13,10 +13,11 @@ public class ModifyRoomCommand implements Command {
         }
 
         String[] details = detail.split("\\s+");
-        if (details.length < 2) {
+        if (details.length < 2 || details.length > 3) {
             throw new CrobsException("Incorrect number of input parameters");
         }
 
+        details[0] = details[0].toUpperCase(Locale.ROOT);
         if (details[1].toUpperCase(Locale.ROOT).equals("ROOMTYPE")) {
             if (details.length == 3) {
                 crobs.modifyRoomType(details[0], PmtParse.parseRoomType(details[2]));
@@ -31,11 +32,12 @@ public class ModifyRoomCommand implements Command {
             }
         } else if (details[1].toUpperCase(Locale.ROOT).equals("FEATURES")) {
             if (details.length == 2) {
-                crobs.modifyRoomFeatures(details[0], null);
+                crobs.modifyRoomFeatures(details[0], new HashSet<String>());
             } else {
+                String[] featureDetails = details[2].split(",");
                 Set<String> newFeatures = new HashSet<>();
-                for (int i = 2; i < details.length; i++) {
-                    newFeatures.add(details[i]);
+                for (String featureDetail : featureDetails) {
+                    newFeatures.add(featureDetail.toUpperCase(Locale.ROOT));
                 }
                 crobs.modifyRoomFeatures(details[0], newFeatures);
             }

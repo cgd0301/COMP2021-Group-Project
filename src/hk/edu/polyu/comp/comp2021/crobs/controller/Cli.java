@@ -1,6 +1,6 @@
 package hk.edu.polyu.comp.comp2021.crobs.controller;
-import hk.edu.polyu.comp.comp2021.crobs.Application;
 import hk.edu.polyu.comp.comp2021.crobs.model.CROBS;
+
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -20,11 +20,14 @@ public class Cli {
         commands.put("removeUser", new RemoveUserCommand());
         commands.put("login", new LoginCommand());
         commands.put("logout", new LogoutCommand());
-        commands.put("addRoom", new AddRoom());
+        commands.put("addRoom", new AddRoomCommand());
         commands.put("modifyRoom", new ModifyRoomCommand());
         commands.put("deleteRoom", new DeleteRoomCommand());
         commands.put("listRoom", new ListRoomCommand());
         commands.put("listAllRooms", new ListAllRoomsCommand());
+        commands.put("book", new BookCommand());
+        commands.put("deleteBooking", new DeleteRoomCommand());
+        commands.put("listBookings", new ListBookingsCommand());
     }
 
     /**

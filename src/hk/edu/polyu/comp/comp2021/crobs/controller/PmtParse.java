@@ -24,7 +24,7 @@ public class PmtParse {
 
     static int parseIntCapacity(String command) {
         if (command.matches("[0-9]+")) {
-            long minCapacity = Integer.parseInt(command);
+            long minCapacity = Long.parseLong(command);
             if (minCapacity <= 0 || minCapacity > MAX_CAPACITY) {
                 throw new CrobsException("Invalid minCapacity paramter " +
                         "(should be positive integer smaller or equal to 65535)");

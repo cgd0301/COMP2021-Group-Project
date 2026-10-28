@@ -1,6 +1,8 @@
 package hk.edu.polyu.comp.comp2021.crobs.model;
 
 import java.lang.reflect.Array;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -8,12 +10,20 @@ public class CROBS {
     public User currentUser;
     private long nextUserNum = 1;
     private long nextRoomNum = 0;
+    private long nextBookingNum = 0;
+    private static final int MAXCAPACITY = 65535;
     private final HashMap<String, User> allUsers = new HashMap<>();
     private final HashMap<String, Room> allRooms = new HashMap<>();
+    private final HashMap<String, Booking> allBookings = new HashMap<>();
+    private final HashMap<String, List<Booking>> userBookings = new HashMap<>();
+    private final HashMap<String, List<Booking>> roomBookings = new HashMap<>();
+    private final Comparator<Booking> byDate = Comparator.comparing(Booking::getDate)
+            .thenComparing(Booking::getStartTime).thenComparing(Booking::getBookingID);
 
     public CROBS() {
         this.currentUser = null;
         this.allUsers.put("S000000", new User("superadmin", "S000000", UserRole.SUPERADMIN));
+        this.userBookings.put("S000000", new LinkedList<>());
     }
 
     public void login(String userID) {
@@ -42,7 +52,8 @@ public class CROBS {
 
         String userID = String.format("S%06d", nextUserNum++);
         User newUser = new User(name, userID, UserRole.REGULAR);
-        allUsers.put(userID, newUser);
+        this.allUsers.put(userID, newUser);
+        this.userBookings.put(userID, new LinkedList<Booking>());
     }
 
     public void removeUser(String targetUserID) {
@@ -55,8 +66,15 @@ public class CROBS {
         } else if (targetUser.getRole() != UserRole.REGULAR){
             throw new CrobsException("Removing (super) admin users is not allowed");
         } else {
-            // TODO: Delete the target user's bookings from allBookings
-            allUsers.remove(targetUserID);
+            List<Booking> userBookings = this.userBookings.get(targetUserID);
+            for (Booking booking : userBookings) {
+                String roomID = booking.getRoomID();
+                String bookingID = booking.getBookingID();
+                this.roomBookings.get(roomID).remove(booking);
+                this.allBookings.remove(bookingID);
+            }
+            this.userBookings.remove(targetUserID);
+            this.allUsers.remove(targetUserID);
         }
     }
 
@@ -78,19 +96,25 @@ public class CROBS {
         targetUser.setRole(newRole);
     }
 
-    public void addRoom(RoomType roomType, int capacity, Set<String> features) {
+    public String addRoom(RoomType roomType, int capacity, Set<String> features) {
         this.checkLoggedIn();
         this.checkAuthority(UserRole.ADMIN);
+
+        if (capacity > MAXCAPACITY || capacity <= 0) {
+            throw new CrobsException("Invalid minCapacity paramter " +
+                    "(should be positive integer smaller or equal to 65535)");
+        }
 
         String roomID = String.format("R%03d", nextRoomNum++);
         Room newRoom = new Room(roomID, roomType, capacity, features);
         this.allRooms.put(roomID, newRoom);
+        this.roomBookings.put(roomID, new LinkedList<Booking>());
+        return roomID;
     }
 
     public void modifyRoomType(String roomID, RoomType newType) {
         this.checkLoggedIn();
         this.checkAuthority(UserRole.ADMIN);
-        System.out.println(roomID);
 
         Room targetRoom = this.allRooms.get(roomID);
         if (targetRoom == null) {
@@ -102,6 +126,11 @@ public class CROBS {
     public void modifyRoomCapacity(String roomID, int newCapacity) {
         this.checkLoggedIn();
         this.checkAuthority(UserRole.ADMIN);
+
+        if (newCapacity > MAXCAPACITY || newCapacity <= 0) {
+            throw new CrobsException("Invalid minCapacity paramter " +
+                    "(should be positive integer smaller or equal to 65535)");
+        }
 
         Room targetRoom = this.allRooms.get(roomID);
         if (targetRoom == null) {
@@ -147,6 +176,72 @@ public class CROBS {
         return Collections.unmodifiableMap(this.allRooms);
     }
 
+    public String book(String roomID, LocalDate date, LocalTime startTime,
+                     LocalTime endTime, String purpose) {
+        this.checkLoggedIn();
+        this.checkTimeValidation(startTime, endTime);
+        String userID = this.currentUser.getUserID();
+
+        List<Booking> roomBookings = this.roomBookings.get(roomID);
+        List<Booking> userBookings = this.userBookings.get(userID);
+
+        if (roomBookings == null) {
+            throw new CrobsException("Input target room ID not found");
+        }
+        for (Booking booking : roomBookings) {
+            if (booking.isConflict(date, startTime, endTime)) {
+                throw new CrobsException("Booking time overlaps with an existing reservation");
+            }
+        }
+        for (Booking booking : userBookings) {
+            if (roomID.equals(booking.getRoomID()) &&
+                    booking.isConflict(date, startTime, endTime)) {
+                throw new CrobsException("Booking time overlaps with an existing reservation");
+            }
+        }
+
+        String bookingID = String.format("B%06d", nextBookingNum++);
+        Booking newBooking = new Booking(bookingID, userID, roomID,
+                date, startTime, endTime, purpose);
+
+        this.allBookings.put(bookingID, newBooking);
+        roomBookings.add(newBooking);
+        roomBookings.sort(byDate);
+        userBookings.add(newBooking);
+        userBookings.sort(byDate);
+
+        return bookingID;
+    }
+
+    public void deleteBooking(String bookingID) {
+        this.checkLoggedIn();
+
+        Booking booking = allBookings.get(bookingID);
+        if (booking == null) {
+            throw new CrobsException("Input target booking ID not found");
+        }
+
+        String currentUserID = currentUser.getUserID();
+        String ownerUserID = booking.getUserID();
+        String roomID = booking.getRoomID();
+
+        if (currentUserID.equals(ownerUserID)) {
+            this.allBookings.remove(bookingID);
+            this.userBookings.get(ownerUserID).remove(booking);
+            this.roomBookings.get(roomID).remove(booking);
+        } else {
+            throw new CrobsException("Input target booking ID not found");
+        }
+    }
+
+    public  List<Booking> getBookings() {
+        this.checkLoggedIn();
+        String currentUserID = this.currentUser.getUserID();
+        return userBookings.get(currentUserID);
+    }
+
+
+
     public Set<Room> search(int minCapacity, Set<String> targetFeatures) {
         this.checkLoggedIn();
 
@@ -169,8 +264,6 @@ public class CROBS {
 
 
 
-
-
     public void checkLoggedIn() {
         if (this.currentUser == null) {
             throw new CrobsException("Not yet logged in");
@@ -183,6 +276,12 @@ public class CROBS {
         }
     }
 
+    public void checkTimeValidation(LocalTime startTime, LocalTime endTime) {
+        if (startTime.isAfter(endTime) || startTime.equals(endTime)) {
+            throw new CrobsException("Invalid time: start time must be earlier than end time");
+        }
+    }
+
     public void checkAuthority(UserRole minAuthority) {
         if (!this.currentUser.compare(minAuthority)) {
             throw new CrobsException("Insufficient permission");
@@ -192,6 +291,8 @@ public class CROBS {
     public User findUser(String userID) {
         return allUsers.get(userID);
     }
+
+
 
     public void addSpecificUser(User user) {
         allUsers.put(user.getUserID(), user);

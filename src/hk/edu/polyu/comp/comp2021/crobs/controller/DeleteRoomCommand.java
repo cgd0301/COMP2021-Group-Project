@@ -1,6 +1,8 @@
 package hk.edu.polyu.comp.comp2021.crobs.controller;
 import hk.edu.polyu.comp.comp2021.crobs.model.*;
 
+import java.util.Locale;
+
 public class DeleteRoomCommand implements Command {
     @Override
     public boolean execute(CROBS crobs, String detail) {
@@ -10,7 +12,7 @@ public class DeleteRoomCommand implements Command {
 
         String[] details = detail.split("\\s+");
         if (details.length == 1) {
-            crobs.deleteRoom(details[0]);
+            crobs.deleteRoom(details[0].toUpperCase(Locale.ROOT));
             System.out.printf("Successfully delete the target room (roomID: %s)\n", details[0]);
         } else {
             throw new CrobsException("Incorrect number of input parameters");

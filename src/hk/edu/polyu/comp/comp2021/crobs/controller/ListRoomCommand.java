@@ -2,6 +2,7 @@ package hk.edu.polyu.comp.comp2021.crobs.controller;
 
 import hk.edu.polyu.comp.comp2021.crobs.model.*;
 
+import java.util.Locale;
 import java.util.Set;
 
 
@@ -14,7 +15,7 @@ public class ListRoomCommand implements Command {
 
         String[] details = detail.split("\\s+");
         if (details.length == 1) {
-            Room targetRoom = crobs.findRoom(details[0]);
+            Room targetRoom = crobs.findRoom(details[0].toUpperCase(Locale.ROOT));
             System.out.printf("Target room found\n RoomID: %s\n " +
                     "Room type: %s\n Room capacity: %s\n ", targetRoom.getRoomID(),
                     targetRoom.getRoomType().getType(), targetRoom.getCapacity());
@@ -28,10 +29,8 @@ public class ListRoomCommand implements Command {
                 for (String feature : features) {
                     if (count == 0) {
                         System.out.print(feature);
-                    } else if (count == features.size() - 1){
-                        System.out.print(", " + feature);
                     } else {
-                        System.out.print(", " + feature + ",");
+                        System.out.print(", " + feature);
                     }
                     count++;
                 }

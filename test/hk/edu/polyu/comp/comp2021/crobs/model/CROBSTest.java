@@ -5,6 +5,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions.*;
 
+import javax.swing.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 
@@ -205,7 +210,134 @@ class CROBSTest {
         assertEquals("You can not change your own role", ex.getMessage());
     }
 
+    @Test
+    void addRoomNormally() {
+        this.loginAs(UserRole.SUPERADMIN);
+        Set<String> features = createFeatures();
 
+        crobs.addRoom(RoomType.COMPUTERLAB, 10, features);
+        crobs.addRoom(RoomType.LECTURETHEATRE, 8, features);
+        Room createdRoom1 = crobs.findRoom("R000");
+        assertNotNull(createdRoom1);
+        assertTrue(checkRoomAttributes(createdRoom1, "R000",
+                RoomType.COMPUTERLAB, 10, features));
+
+        Room createdRoom2 = crobs.findRoom("R001");
+        assertNotNull(createdRoom2);
+        assertTrue(checkRoomAttributes(createdRoom2, "R001",
+                RoomType.LECTURETHEATRE, 8, features));
+    }
+
+    @Test
+    void addRoomWithCapacityExceedsMax() {
+        this.loginAs(UserRole.SUPERADMIN);
+        Set<String> features = createFeatures();
+
+        CrobsException ex1 = assertThrows(CrobsException.class,
+                () -> crobs.addRoom(RoomType.COMPUTERLAB, 100000, features));
+        CrobsException ex2 = assertThrows(CrobsException.class,
+                () -> crobs.addRoom(RoomType.COMPUTERLAB, 99999999, features));
+        CrobsException ex3 = assertThrows(CrobsException.class,
+                () -> crobs.addRoom(RoomType.COMPUTERLAB, 0, features));
+        CrobsException ex4 = assertThrows(CrobsException.class,
+                () -> crobs.addRoom(RoomType.COMPUTERLAB, -1, features));
+
+        String invalidMinCapacityOutput = "Invalid minCapacity paramter " +
+                "(should be positive integer smaller or equal to 65535)";
+        assertEquals(invalidMinCapacityOutput, ex1.getMessage());
+        assertEquals(invalidMinCapacityOutput, ex2.getMessage());
+        assertEquals(invalidMinCapacityOutput, ex3.getMessage());
+        assertEquals(invalidMinCapacityOutput, ex4.getMessage());
+    }
+
+    @Test
+    void addRoomWithInsufficientPermission() {
+        this.loginAs(UserRole.REGULAR);
+        Set<String> features = this.createFeatures();
+
+        CrobsException ex = assertThrows(CrobsException.class,
+                () -> crobs.addRoom(RoomType.COMPUTERLAB, 10, features));
+        assertEquals("Insufficient permission", ex.getMessage());
+    }
+
+    @Test
+    void modifyRoomNormally() {
+        this.loginAs(UserRole.ADMIN);
+
+        Set<String> features = this.createFeatures();
+        Set<String> newFeatures = new HashSet<>();
+        newFeatures.add("tidy");
+        newFeatures.add("multi_media");
+
+        crobs.addRoom(RoomType.COMPUTERLAB, 10, features);
+        Room room = crobs.findRoom("R000");
+        crobs.modifyRoomType("R000", RoomType.LECTURETHEATRE);
+        crobs.modifyRoomCapacity("R000", 5);
+        crobs.modifyRoomFeatures("R000", newFeatures);
+
+        assertTrue(checkRoomAttributes(room, "R000",
+                RoomType.LECTURETHEATRE, 5, newFeatures));
+    }
+
+    @Test
+    void modifyRoomWithInsufficientPermission() {
+        Set<String> newFeatures = new HashSet<>();
+        newFeatures.add("tidy");
+        newFeatures.add("multi_media");
+
+        this.loginAs(UserRole.SUPERADMIN);
+        Set<String> features = this.createFeatures();
+        crobs.addRoom(RoomType.COMPUTERLAB, 10, features);
+        crobs.logout();
+        this.loginAs(UserRole.REGULAR);
+
+        CrobsException ex1 = assertThrows(CrobsException.class,
+                () -> crobs.modifyRoomType("R000", RoomType.LECTURETHEATRE));
+        CrobsException ex2 = assertThrows(CrobsException.class,
+                () -> crobs.modifyRoomCapacity("R000", 8));
+        CrobsException ex3 = assertThrows(CrobsException.class,
+                () -> crobs.modifyRoomFeatures("R000", newFeatures));
+
+        assertEquals("Insufficient permission", ex1.getMessage());
+        assertEquals("Insufficient permission", ex2.getMessage());
+        assertEquals("Insufficient permission", ex3.getMessage());
+    }
+
+    @Test
+    void modifyRoomForRoomIDNotExists() {
+        Set<String> newFeatures = new HashSet<>();
+        newFeatures.add("tidy");
+        newFeatures.add("multi_media");
+
+        this.loginAs(UserRole.SUPERADMIN);
+        Set<String> features = createFeatures();
+        crobs.addRoom(RoomType.COMPUTERLAB, 10, features);
+
+        CrobsException ex1 = assertThrows(CrobsException.class,
+                () -> crobs.modifyRoomType("R999", RoomType.LECTURETHEATRE));
+        CrobsException ex2 = assertThrows(CrobsException.class,
+                () -> crobs.modifyRoomCapacity("R999", 8));
+        CrobsException ex3 = assertThrows(CrobsException.class,
+                () -> crobs.modifyRoomFeatures("R999", newFeatures));
+
+        assertEquals("Input target room ID not found", ex1.getMessage());
+        assertEquals("Input target room ID not found", ex2.getMessage());
+        assertEquals("Input target room ID not found", ex3.getMessage());
+    }
+
+    private boolean checkRoomAttributes(Room room, String roomID, RoomType roomType, int capacity, Set<String> features) {
+        boolean isWrong = room.getRoomType() != roomType || room.getCapacity() != capacity
+                || !roomID.equals(room.getRoomID()) || !features.equals(room.getFeatures());
+        return !isWrong;
+    }
+
+    private Set<String> createFeatures() {
+        Set<String> features = new HashSet<>();
+        features.add("large");
+        features.add("spacious");
+        features.add("cozy");
+        return features;
+    }
 
     private void loginAs(UserRole role) {
         if (role != UserRole.SUPERADMIN ){
