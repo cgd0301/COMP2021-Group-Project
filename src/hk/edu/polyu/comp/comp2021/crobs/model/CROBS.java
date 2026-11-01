@@ -1,6 +1,8 @@
 package hk.edu.polyu.comp.comp2021.crobs.model;
 
+
 import java.lang.reflect.Array;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
@@ -11,6 +13,7 @@ public class CROBS {
     private long nextUserNum = 1;
     private long nextRoomNum = 0;
     private long nextBookingNum = 0;
+    private final Clock clock;
     private static final int MAXCAPACITY = 65535;
     private final HashMap<String, User> allUsers = new HashMap<>();
     private final HashMap<String, Room> allRooms = new HashMap<>();
@@ -19,11 +22,18 @@ public class CROBS {
     private final HashMap<String, List<Booking>> roomBookings = new HashMap<>();
     private final Comparator<Booking> byDate = Comparator.comparing(Booking::getDate)
             .thenComparing(Booking::getStartTime).thenComparing(Booking::getBookingID);
+    private final Comparator<Room> byRoomID = Comparator.comparing(Room::getRoomID);
 
     public CROBS() {
-        this.currentUser = null;
         this.allUsers.put("S000000", new User("superadmin", "S000000", UserRole.SUPERADMIN));
         this.userBookings.put("S000000", new LinkedList<>());
+        this.clock = Clock.systemDefaultZone();
+    }
+
+    public CROBS(Clock clock) {
+        this.allUsers.put("S000000", new User("superadmin", "S000000", UserRole.SUPERADMIN));
+        this.userBookings.put("S000000", new LinkedList<>());
+        this.clock = clock;
     }
 
     public void login(String userID) {
@@ -153,13 +163,23 @@ public class CROBS {
     public void deleteRoom(String roomID) {
         this.checkLoggedIn();
         this.checkAuthority(UserRole.ADMIN);
+        LocalDate currentDate = LocalDate.now(clock);
+        LocalTime currentTime = LocalTime.now(clock);
 
         Room targetRoom = this.allRooms.get(roomID);
         if (targetRoom == null) {
             throw new CrobsException("Input target room ID not found");
         }
-        //TODO: Delete the future bookings relevant to the room
+        List<Booking> roomBookings = this.roomBookings.get(roomID);
+        List<Booking> roomBookingsTmp = new ArrayList<>(roomBookings);
+        for (Booking booking : roomBookingsTmp) {
+            if (booking.getDate().isAfter(currentDate) ||
+                    (booking.getDate().isEqual(currentDate) && booking.getStartTime().isAfter(currentTime))) {
+                this.removeBooking(booking.getBookingID());
+            }
+        }
         allRooms.remove(roomID);
+        if (roomBookings.isEmpty()) {this.roomBookings.remove(roomID);}
     }
 
     public Room findRoom(String roomID) {
@@ -185,7 +205,7 @@ public class CROBS {
         List<Booking> roomBookings = this.roomBookings.get(roomID);
         List<Booking> userBookings = this.userBookings.get(userID);
 
-        if (roomBookings == null) {
+        if (roomBookings == null || allRooms.get(roomID) == null) {
             throw new CrobsException("Input target room ID not found");
         }
         for (Booking booking : roomBookings) {
@@ -223,15 +243,87 @@ public class CROBS {
 
         String currentUserID = currentUser.getUserID();
         String ownerUserID = booking.getUserID();
-        String roomID = booking.getRoomID();
 
         if (currentUserID.equals(ownerUserID)) {
-            this.allBookings.remove(bookingID);
-            this.userBookings.get(ownerUserID).remove(booking);
-            this.roomBookings.get(roomID).remove(booking);
+            this.removeBooking(bookingID);
         } else {
             throw new CrobsException("Input target booking ID not found");
         }
+    }
+
+    private void removeBooking(String bookingID) {
+        Booking booking = allBookings.get(bookingID);
+        if (booking == null) {
+            throw new CrobsException("Input target booking ID not found");
+        }
+        String ownerUserID = booking.getUserID();
+        String roomID = booking.getRoomID();
+
+        this.allBookings.remove(bookingID);
+        this.userBookings.get(ownerUserID).remove(booking);
+        this.roomBookings.get(roomID).remove(booking);
+        if (!allRooms.containsKey(roomID) && this.roomBookings.get(roomID).isEmpty()) {
+            this.roomBookings.remove(roomID);
+        }
+    }
+
+    public void modifyBooking(String bookingID, String roomID, LocalDate date, LocalTime startTime,
+                              LocalTime endTime, String purpose) {
+        this.checkLoggedIn();
+        LocalDate currentDate = LocalDate.now(clock);
+        LocalTime currentTime = LocalTime.now(clock);
+
+        this.checkTimeValidation(startTime, endTime);
+        if (!allRooms.containsKey(roomID)) {
+            throw new CrobsException("Input target room ID not found");
+        }
+        if (date.isBefore(currentDate) || (date.isEqual(currentDate) &&
+                startTime.isBefore(currentTime))) {
+            throw new CrobsException("Booking can not be modified to a past date/time");
+        }
+
+        Booking booking = this.allBookings.get(bookingID);
+        if (booking == null) {
+            throw new CrobsException("Input target booking ID not found");
+        }
+
+        String ownerUserID = booking.getUserID();
+        String bookingRoomID = booking.getRoomID();
+        LocalDate bookingDate = booking.getDate();
+        LocalTime bookingStartTime = booking.getStartTime();
+        if (!ownerUserID.equals(this.currentUser.getUserID())) {
+            throw new CrobsException("Input target booking ID not found");
+        }
+        if (bookingDate.isBefore(currentDate) || (bookingDate.isEqual(currentDate) &&
+                bookingStartTime.isBefore(currentTime))) {
+            throw new CrobsException("Modifying previous booking is not allowed");
+        }
+
+        if (roomID.equals(bookingRoomID)) {
+            for (Booking bookingTmp : this.roomBookings.get(roomID)) {
+                if (!bookingTmp.getBookingID().equals(booking.getBookingID())) {
+                    if (bookingTmp.isConflict(date, startTime, endTime)) {
+                        throw new CrobsException("Booking time overlaps with an existing reservation");
+                    }
+                }
+            }
+        } else {
+            for (Booking bookingTmp : this.roomBookings.get(roomID)) {
+                if (bookingTmp.isConflict(date, startTime, endTime)) {
+                    throw new CrobsException("Booking time overlaps with an existing reservation");
+                }
+            }
+            this.roomBookings.get(bookingRoomID).remove(booking);
+            this.roomBookings.get(roomID).add(booking);
+            booking.setRoomID(roomID);
+        }
+
+        booking.setDate(date);
+        booking.setStartTime(startTime);
+        booking.setEndTime(endTime);
+        booking.setPurpose(purpose);
+        this.roomBookings.get(roomID).sort(byDate);
+        this.userBookings.get(ownerUserID).sort(byDate);
     }
 
     public  List<Booking> getBookings() {
@@ -242,17 +334,29 @@ public class CROBS {
 
 
 
-    public Set<Room> search(int minCapacity, Set<String> targetFeatures) {
+    public List<Room> search(LocalDate date, LocalTime starTime, LocalTime endTime,
+                            int minCapacity, Set<String> targetFeatures) {
         this.checkLoggedIn();
+        this.checkTimeValidation(starTime, endTime);
 
-        Set<Room> searchResult = new HashSet<>();
+        List<Room> searchResult = new LinkedList<>();
         for (Room room : allRooms.values()) {
-            if (room.satisfies(minCapacity, targetFeatures)) {
+            boolean satisfies = room.satisfies(minCapacity, targetFeatures);
+            List<Booking> roomBookings = this.roomBookings.get(room.getRoomID());
+            for (Booking booking : roomBookings) {
+                if (booking.isConflict(date, starTime, endTime)) {
+                    satisfies = false;
+                    break;
+                }
+            }
+            if (!room.getFeatures().containsAll(targetFeatures)) {
+                satisfies = false;
+            }
+            if (satisfies) {
                 searchResult.add(room);
             }
         }
-
-        //TODO: Consider the overlap time for booking of a room
+        searchResult.sort(byRoomID);
         return searchResult;
     }
 
@@ -291,6 +395,7 @@ public class CROBS {
     public User findUser(String userID) {
         return allUsers.get(userID);
     }
+
 
 
 

@@ -3,6 +3,11 @@ package hk.edu.polyu.comp.comp2021.crobs.controller;
 import hk.edu.polyu.comp.comp2021.crobs.model.CrobsException;
 import hk.edu.polyu.comp.comp2021.crobs.model.RoomType;
 
+import java.time.DateTimeException;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.util.Locale;
 
 public class PmtParse {
@@ -35,5 +40,29 @@ public class PmtParse {
             throw new CrobsException("Invalid minCapacity paramter " +
                     "(should be positive integer smaller or equal to 65535)");
         }
+    }
+
+    static LocalDate parseLocalDate(String strDate) {
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd")
+                .withResolverStyle(ResolverStyle.STRICT);
+        LocalDate date;
+        try {
+            date = LocalDate.parse(strDate, dateFormatter);
+        } catch (DateTimeException ex) {
+            throw new CrobsException("Invalid date format");
+        }
+        return date;
+    }
+
+    static LocalTime parseLocalTime(String strTime) {
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+                .withResolverStyle(ResolverStyle.STRICT);
+        LocalTime time;
+        try {
+            time = LocalTime.parse(strTime, timeFormatter);
+        } catch (DateTimeException ex) {
+            throw new CrobsException("Invalid time format");
+        }
+        return time;
     }
 }

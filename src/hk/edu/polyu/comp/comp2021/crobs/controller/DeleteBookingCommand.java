@@ -2,6 +2,8 @@ package hk.edu.polyu.comp.comp2021.crobs.controller;
 
 import hk.edu.polyu.comp.comp2021.crobs.model.*;
 
+import java.util.Locale;
+
 
 public class DeleteBookingCommand implements Command {
     @Override
@@ -12,7 +14,7 @@ public class DeleteBookingCommand implements Command {
 
         String[] details = detail.split("\\s+");
         if (details.length == 1) {
-            crobs.deleteBooking(details[0]);
+            crobs.deleteBooking(details[0].toUpperCase(Locale.ROOT));
             System.out.println("Successfully delete a booking");
         } else {
             throw new CrobsException("Incorrect number of input parameters");

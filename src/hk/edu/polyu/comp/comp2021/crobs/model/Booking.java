@@ -64,4 +64,24 @@ public class Booking {
     public String getPurpose() {
         return this.purpose;
     }
+
+    public void setDate(LocalDate date) {
+        this.date = date;
+    }
+
+    public void setStartTime(LocalTime startTime) {
+        this.startTime = startTime;
+    }
+
+    public void setEndTime(LocalTime endTime) {
+        this.endTime = endTime;
+    }
+
+    public void setPurpose(String purpose) {
+        this.purpose = purpose;
+    }
+
+    public void setRoomID(String roomID) {
+        this.roomID = roomID;
+    }
 }

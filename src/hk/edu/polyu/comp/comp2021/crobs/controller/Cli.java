@@ -26,8 +26,9 @@ public class Cli {
         commands.put("listRoom", new ListRoomCommand());
         commands.put("listAllRooms", new ListAllRoomsCommand());
         commands.put("book", new BookCommand());
-        commands.put("deleteBooking", new DeleteRoomCommand());
+        commands.put("deleteBooking", new DeleteBookingCommand());
         commands.put("listBookings", new ListBookingsCommand());
+        commands.put("modifyBooking", new ModifyBookingCommand());
     }
 
     /**

@@ -8,6 +8,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 import java.time.format.ResolverStyle;
+import java.util.Locale;
 
 public class BookCommand implements Command {
     @Override
@@ -16,30 +17,16 @@ public class BookCommand implements Command {
             throw new CrobsException("Incorrect number of input parameters");
         }
         String[] details = detail.split("\\s+", 5);
-        for (int i = 0; i < 4; i++) {
-            if (details[i] == null) {
-                throw new CrobsException("Incorrect number of input parameters");
-            }
+        if (details.length < 4) {
+            throw new CrobsException("Incorrect number of input parameters");
         }
+        String purpose = details.length == 5 ? details[4] : "";
 
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd")
-                .withResolverStyle(ResolverStyle.STRICT);
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-                .withResolverStyle(ResolverStyle.STRICT);
-        LocalDate date;
-        LocalTime startTime;
-        LocalTime endTime;
-        try {
-            date = LocalDate.parse(details[1], dateFormatter);
-            startTime = LocalTime.parse(details[2], timeFormatter);
-            endTime = LocalTime.parse(details[3], timeFormatter);
-        } catch (DateTimeException ex) {
-            throw new CrobsException("Invalid date or time format");
-        }
-        if (details[4] == null) {
-            details[4] = "";
-        }
-        String bookingID = crobs.book(details[0], date, startTime, endTime, details[4]);
+        LocalDate date = PmtParse.parseLocalDate(details[1]);
+        LocalTime startTime = PmtParse.parseLocalTime(details[2]);
+        LocalTime endTime = PmtParse.parseLocalTime(details[3]);
+
+        String bookingID = crobs.book(details[0].toUpperCase(Locale.ROOT), date, startTime, endTime, purpose);
         System.out.printf("Successfully make a booking (bookingID: %s)\n", bookingID);
         return false;
     }
