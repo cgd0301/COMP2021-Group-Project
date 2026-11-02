@@ -431,6 +431,7 @@ public class CROBS {
 
     public void addSpecificUser(User user) {
         allUsers.put(user.getUserID(), user);
+        userBookings.putIfAbsent(user.getUserID(), new LinkedList<Booking>());
     }
 
 }
