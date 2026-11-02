@@ -2,8 +2,7 @@ package hk.edu.polyu.comp.comp2021.crobs;
 import hk.edu.polyu.comp.comp2021.crobs.controller.*;
 import hk.edu.polyu.comp.comp2021.crobs.model.*;
 
-import java.util.HashMap;
-import java.util.Scanner;
+import java.io.IOException;
 
 public class Application {
 
@@ -54,9 +53,12 @@ public class Application {
             return;
         }
 
-        CROBS crobs = new CROBS();
-        new Cli().run(crobs);
-
+        try {
+            OperationLog log = CompositeOperationLog.open(htmlPath, txtPath);
+            new Cli().run(new CROBS(), log);
+        } catch (IOException ex) {
+            System.out.println(ex.getMessage());
+        }
     }
 }
 

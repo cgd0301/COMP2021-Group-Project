@@ -31,10 +31,8 @@ public class ListAllRoomsCommand implements Command {
                 for (String feature : features) {
                     if (count == 0) {
                         System.out.print(feature);
-                    } else if (count == features.size() - 1){
+                    }  else {
                         System.out.print(", " + feature);
-                    } else {
-                        System.out.print(", " + feature + ",");
                     }
                     count++;
                 }

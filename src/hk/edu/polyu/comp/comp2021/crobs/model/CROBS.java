@@ -1,6 +1,7 @@
 package hk.edu.polyu.comp.comp2021.crobs.model;
 
 
+
 import java.lang.reflect.Array;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -360,6 +361,33 @@ public class CROBS {
         return searchResult;
     }
 
+    public Map<Booking, String> schedule(String roomID, LocalDate weekStartDate) {
+        this.checkLoggedIn();
+
+        Map<Booking, String> scheduleResult = new TreeMap<>(byDate);
+        LocalDate weekEndDate = weekStartDate.plusDays(6);
+        if (this.allRooms.get(roomID) == null) {
+            throw new CrobsException("Input target room ID not found");
+        }
+        List<Booking> roomBookings = this.roomBookings.get(roomID);
+        for (Booking booking : roomBookings) {
+            LocalDate bookingDate = booking.getDate();
+            if ((bookingDate.isAfter(weekStartDate) && bookingDate.isBefore(weekEndDate)) ||
+                    bookingDate.isEqual(weekStartDate) || bookingDate.isEqual(weekEndDate)) {
+                if (this.currentUser.getRole() == UserRole.REGULAR) {
+                    if (booking.getUserID().equals(this.currentUser.getUserID())) {
+                        scheduleResult.put(booking, this.currentUser.getUserID());
+                    } else {
+                        scheduleResult.put(booking, "");
+                    }
+                } else {
+                    scheduleResult.put(booking, booking.getUserID());
+                }
+            }
+        }
+        return scheduleResult;
+    }
+
 
 
 
@@ -396,7 +424,9 @@ public class CROBS {
         return allUsers.get(userID);
     }
 
-
+    public UserRole getCurrentUserRole() {
+        return this.currentUser.getRole();
+    }
 
 
     public void addSpecificUser(User user) {
