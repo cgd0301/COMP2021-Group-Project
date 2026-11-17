@@ -1,7 +1,10 @@
 package hk.edu.polyu.comp.comp2021.crobs.controller;
 
 import java.io.File;
-import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -25,7 +28,7 @@ public class CompositeOperationLog implements OperationLog {
     }
 
     /**
-     * Opens both session logs. The files are replaced, not appended.
+     * Opens both session logs. Existing files are never overwritten; choose new log paths.
      * Nothing is left behind when either path cannot be opened.
      *
      * @param htmlPath HTML log path
@@ -89,7 +92,10 @@ public class CompositeOperationLog implements OperationLog {
 
     private static Writer newUtf8Writer(String path) throws IOException {
         try {
-            return new OutputStreamWriter(new FileOutputStream(path), StandardCharsets.UTF_8);
+            return new OutputStreamWriter(Files.newOutputStream(Paths.get(path), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE), StandardCharsets.UTF_8);
+        } catch (FileAlreadyExistsException ex) {
+            throw new IOException("Log file already exists: " + path
+                    + ". Choose a new file name to preserve the existing file.", ex);
         } catch (IOException ex) {
             throw new IOException("Cannot open log file: " + path + ". " + ex.getMessage(), ex);
         }

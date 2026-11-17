@@ -2,12 +2,10 @@ package hk.edu.polyu.comp.comp2021.crobs.model;
 
 
 
-import java.lang.reflect.Array;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class CROBS {
     public User currentUser;
@@ -432,6 +430,331 @@ public class CROBS {
     public void addSpecificUser(User user) {
         allUsers.put(user.getUserID(), user);
         userBookings.putIfAbsent(user.getUserID(), new LinkedList<Booking>());
+    }
+
+    /**
+     * Creates an internal state snapshot for the undo/redo facility.
+     * The active login session is deliberately excluded because login and logout
+     * are not undoable operations in the project specification.
+     *
+     * @return an isolated snapshot of all mutable CROBS data
+     */
+    public Memento createMemento() {
+        Map<String, UserState> users = new HashMap<>();
+        for (Map.Entry<String, User> entry : this.allUsers.entrySet()) {
+            User user = entry.getValue();
+            users.put(entry.getKey(),
+                    new UserState(user.getName(), user.getUserID(), user.getRole()));
+        }
+
+        Map<String, RoomState> rooms = new HashMap<>();
+        for (Map.Entry<String, Room> entry : this.allRooms.entrySet()) {
+            Room room = entry.getValue();
+            rooms.put(entry.getKey(), new RoomState(room.getRoomID(), room.getRoomType(),
+                    room.getCapacity(), room.getFeatures()));
+        }
+
+        Map<String, BookingState> bookings = new HashMap<>();
+        for (Map.Entry<String, Booking> entry : this.allBookings.entrySet()) {
+            Booking booking = entry.getValue();
+            bookings.put(entry.getKey(), new BookingState(booking.getBookingID(),
+                    booking.getUserID(), booking.getRoomID(), booking.getDate(),
+                    booking.getStartTime(), booking.getEndTime(), booking.getPurpose()));
+        }
+
+        Map<String, List<String>> userBookingIDs = new HashMap<>();
+        Map<String, List<String>> roomBookingIDs = new HashMap<>();
+        copyBookingIDs(this.userBookings, userBookingIDs);
+        copyBookingIDs(this.roomBookings, roomBookingIDs);
+
+        return new Memento(users, rooms, bookings, userBookingIDs, roomBookingIDs,
+                this.nextUserNum, this.nextRoomNum, this.nextBookingNum);
+    }
+
+    /**
+     * Restores mutable CROBS data from a previously captured snapshot while
+     * preserving whichever user is currently logged in.
+     *
+     * @param memento the snapshot to restore
+     */
+    public void restoreMemento(Memento memento) {
+        if (memento == null) {
+            throw new IllegalArgumentException("A state snapshot is required");
+        }
+
+        String activeUserID = this.currentUser == null ? null : this.currentUser.getUserID();
+        if (activeUserID != null && !memento.userStates().containsKey(activeUserID)) {
+            throw new CrobsException("Cannot restore a state that removes the logged-in user");
+        }
+
+        this.allUsers.clear();
+        for (Map.Entry<String, UserState> entry : memento.userStates().entrySet()) {
+            UserState state = entry.getValue();
+            this.allUsers.put(entry.getKey(), new User(state.name(), state.userID(), state.role()));
+        }
+
+        this.allRooms.clear();
+        for (Map.Entry<String, RoomState> entry : memento.roomStates().entrySet()) {
+            RoomState state = entry.getValue();
+            this.allRooms.put(entry.getKey(),
+                    new Room(state.roomID(), state.roomType(), state.capacity(), state.features()));
+        }
+
+        this.allBookings.clear();
+        for (Map.Entry<String, BookingState> entry : memento.bookingStates().entrySet()) {
+            BookingState state = entry.getValue();
+            this.allBookings.put(entry.getKey(), new Booking(state.bookingID(), state.userID(),
+                    state.roomID(), state.date(), state.startTime(), state.endTime(), state.purpose()));
+        }
+
+        this.userBookings.clear();
+        for (Map.Entry<String, List<String>> entry : memento.userBookingIDs().entrySet()) {
+            List<Booking> restoredBookings = new LinkedList<>();
+            for (String bookingID : entry.getValue()) {
+                Booking booking = this.allBookings.get(bookingID);
+                if (booking != null) {
+                    restoredBookings.add(booking);
+                }
+            }
+            this.userBookings.put(entry.getKey(), restoredBookings);
+        }
+
+        this.roomBookings.clear();
+        for (Map.Entry<String, List<String>> entry : memento.roomBookingIDs().entrySet()) {
+            List<Booking> restoredBookings = new LinkedList<>();
+            for (String bookingID : entry.getValue()) {
+                Booking booking = this.allBookings.get(bookingID);
+                if (booking != null) {
+                    restoredBookings.add(booking);
+                }
+            }
+            this.roomBookings.put(entry.getKey(), restoredBookings);
+        }
+
+        this.nextUserNum = memento.nextUserNum();
+        this.nextRoomNum = memento.nextRoomNum();
+        this.nextBookingNum = memento.nextBookingNum();
+        this.currentUser = activeUserID == null ? null : this.allUsers.get(activeUserID);
+    }
+
+    private static void copyBookingIDs(Map<String, List<Booking>> source,
+                                       Map<String, List<String>> destination) {
+        for (Map.Entry<String, List<Booking>> entry : source.entrySet()) {
+            List<String> bookingIDs = new ArrayList<>();
+            for (Booking booking : entry.getValue()) {
+                bookingIDs.add(booking.getBookingID());
+            }
+            destination.put(entry.getKey(), bookingIDs);
+        }
+    }
+
+    /**
+     * Immutable snapshot of model state used by the application history manager.
+     */
+    public static final class Memento {
+        private final Map<String, UserState> users;
+        private final Map<String, RoomState> rooms;
+        private final Map<String, BookingState> bookings;
+        private final Map<String, List<String>> userBookingIDs;
+        private final Map<String, List<String>> roomBookingIDs;
+        private final long nextUserNum;
+        private final long nextRoomNum;
+        private final long nextBookingNum;
+
+        /**
+         * Creates a memento from isolated state data assembled by the enclosing model.
+         *
+         * @param users copied user state
+         * @param rooms copied room state
+         * @param bookings copied booking state
+         * @param userBookingIDs copied user-to-booking associations
+         * @param roomBookingIDs copied room-to-booking associations
+         * @param nextUserNum next user identifier counter
+         * @param nextRoomNum next room identifier counter
+         * @param nextBookingNum next booking identifier counter
+         */
+        Memento(Map<String, UserState> users, Map<String, RoomState> rooms,
+                Map<String, BookingState> bookings, Map<String, List<String>> userBookingIDs,
+                Map<String, List<String>> roomBookingIDs, long nextUserNum,
+                long nextRoomNum, long nextBookingNum) {
+            this.users = new HashMap<>(users);
+            this.rooms = new HashMap<>(rooms);
+            this.bookings = new HashMap<>(bookings);
+            this.userBookingIDs = copyIDLists(userBookingIDs);
+            this.roomBookingIDs = copyIDLists(roomBookingIDs);
+            this.nextUserNum = nextUserNum;
+            this.nextRoomNum = nextRoomNum;
+            this.nextBookingNum = nextBookingNum;
+        }
+
+        private Map<String, UserState> userStates() {
+            return this.users;
+        }
+
+        private Map<String, RoomState> roomStates() {
+            return this.rooms;
+        }
+
+        private Map<String, BookingState> bookingStates() {
+            return this.bookings;
+        }
+
+        private Map<String, List<String>> userBookingIDs() {
+            return this.userBookingIDs;
+        }
+
+        private Map<String, List<String>> roomBookingIDs() {
+            return this.roomBookingIDs;
+        }
+
+        private long nextUserNum() {
+            return this.nextUserNum;
+        }
+
+        private long nextRoomNum() {
+            return this.nextRoomNum;
+        }
+
+        private long nextBookingNum() {
+            return this.nextBookingNum;
+        }
+
+        private Map<String, List<String>> copyIDLists(Map<String, List<String>> source) {
+            Map<String, List<String>> result = new HashMap<>();
+            for (Map.Entry<String, List<String>> entry : source.entrySet()) {
+                result.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+            }
+            return result;
+        }
+    }
+
+    private static final class UserState {
+        private final String name;
+        private final String userID;
+        private final UserRole role;
+
+        /**
+         * Creates a copied user state.
+         *
+         * @param name the user's display name
+         * @param userID the user's identifier
+         * @param role the user's role
+         */
+        UserState(String name, String userID, UserRole role) {
+            this.name = name;
+            this.userID = userID;
+            this.role = role;
+        }
+
+        private String name() {
+            return this.name;
+        }
+
+        private String userID() {
+            return this.userID;
+        }
+
+        private UserRole role() {
+            return this.role;
+        }
+    }
+
+    private static final class RoomState {
+        private final String roomID;
+        private final RoomType roomType;
+        private final int capacity;
+        private final Set<String> features;
+
+        /**
+         * Creates a copied room state.
+         *
+         * @param roomID the room identifier
+         * @param roomType the room type
+         * @param capacity the room capacity
+         * @param features the room features
+         */
+        RoomState(String roomID, RoomType roomType, int capacity, Set<String> features) {
+            this.roomID = roomID;
+            this.roomType = roomType;
+            this.capacity = capacity;
+            this.features = new HashSet<>(features);
+        }
+
+        private String roomID() {
+            return this.roomID;
+        }
+
+        private RoomType roomType() {
+            return this.roomType;
+        }
+
+        private int capacity() {
+            return this.capacity;
+        }
+
+        private Set<String> features() {
+            return this.features;
+        }
+    }
+
+    private static final class BookingState {
+        private final String bookingID;
+        private final String userID;
+        private final String roomID;
+        private final LocalDate date;
+        private final LocalTime startTime;
+        private final LocalTime endTime;
+        private final String purpose;
+
+        /**
+         * Creates a copied booking state.
+         *
+         * @param bookingID the booking identifier
+         * @param userID the booking owner
+         * @param roomID the booked room
+         * @param date the booking date
+         * @param startTime the booking start time
+         * @param endTime the booking end time
+         * @param purpose the booking purpose
+         */
+        BookingState(String bookingID, String userID, String roomID, LocalDate date,
+                     LocalTime startTime, LocalTime endTime, String purpose) {
+            this.bookingID = bookingID;
+            this.userID = userID;
+            this.roomID = roomID;
+            this.date = date;
+            this.startTime = startTime;
+            this.endTime = endTime;
+            this.purpose = purpose;
+        }
+
+        private String bookingID() {
+            return this.bookingID;
+        }
+
+        private String userID() {
+            return this.userID;
+        }
+
+        private String roomID() {
+            return this.roomID;
+        }
+
+        private LocalDate date() {
+            return this.date;
+        }
+
+        private LocalTime startTime() {
+            return this.startTime;
+        }
+
+        private LocalTime endTime() {
+            return this.endTime;
+        }
+
+        private String purpose() {
+            return this.purpose;
+        }
     }
 
 }

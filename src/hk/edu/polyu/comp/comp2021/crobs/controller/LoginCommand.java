@@ -1,7 +1,6 @@
 package hk.edu.polyu.comp.comp2021.crobs.controller;
 import hk.edu.polyu.comp.comp2021.crobs.model.*;
 
-import java.util.Locale;
 
 public class LoginCommand implements Command {
     @Override
